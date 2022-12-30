@@ -1,8 +1,40 @@
 version: 0.2
 
+env:
+  variables:
+    AWS_DEFAULT_REGION: "us-east-1"
+    AWS_ACCOUNT_ID: "254410597073"
+    ECR_REPO_NAME: "webapp"
+    ECR_IMAGE_TAG: "latest"
+
 phases:
   build:
     commands:
       - echo "Start build phase"
       - echo "Another command"
       
+  install:
+    commands:
+      - echo "Checking versions"
+      - aws --version
+      - git --version
+  
+  pre-build:
+    commands:
+      - echo "Login to AWS..."
+      - aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 254410597073.dkr.ecr.us-east-1.amazonaws.com
+      - COMMIT_ID=$(git rev-parse --short HEAD)
+
+  build:
+    commands:
+      - echo "Building..."
+      - docker build -t $ECR_REPO_NAME:$ECR_IMAGE_TAG .
+      - docker tag $ECR_REPO_NAME:$ECR_IMAGE_TAG $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$ECR_REPO_NAME:$ECR_IMAGE_TAG
+      - docker tag $ECR_REPO_NAME:$ECR_IMAGE_TAG $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$ECR_REPO_NAME:$COMMIT_ID
+
+  push:
+    commands:
+      - echo "Pushing..."
+      - docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$ECR_REPO_NAME:$ECR_IMAGE_TAG
+      - docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$ECR_REPO_NAME:$COMMIT_ID
+    
